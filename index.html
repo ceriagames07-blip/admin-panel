@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Admin Marble Game</title>
+  <style>
+    :root {
+      --bg:#080c17;
+      --panel:#141a2b;
+      --text:#f8f8ff;
+      --muted:#aab2ca;
+      --accent:#e00000;
+      --accent-dark:#8e0000;
+      --border:rgba(255,255,255,.12);
+      --danger:#ff5264;
+      --shadow:0 22px 60px rgba(0,0,0,.38);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:linear-gradient(180deg,#070b14,#0d1322);color:var(--text);font-family:Inter,Arial,sans-serif}
+    body{padding:16px}
+    button,input{font:inherit}
+    button{border:0;cursor:pointer}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .hidden{display:none!important}
+    .app{width:min(1220px,100%);margin:auto}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+    .header h1{margin:0;font-size:clamp(25px,4vw,38px)}
+    .header p{margin:6px 0 0;color:var(--muted)}
+    .panel{border:1px solid var(--border);border-radius:18px;background:rgba(255,255,255,.04);box-shadow:var(--shadow);overflow:hidden}
+    .panel-body{padding:17px}
+    .login{width:min(460px,100%);margin:70px auto 0}
+    .field span{display:block;margin-bottom:6px;color:var(--muted);font-size:12px;font-weight:800}
+    .field input{width:100%;height:45px;padding:0 12px;border:1px solid var(--border);border-radius:12px;outline:none;color:var(--text);background:rgba(4,7,14,.62)}
+    .primary,.secondary,.danger{min-height:43px;padding:10px 14px;border-radius:12px;color:white;font-weight:800}
+    .primary{background:linear-gradient(135deg,var(--accent),var(--accent-dark))}
+    .secondary{border:1px solid var(--border);background:rgba(255,255,255,.07)}
+    .danger{border:1px solid rgba(255,82,100,.3);background:rgba(255,82,100,.12);color:#ffc6cc}
+    .full{width:100%;margin-top:10px}
+    .message{display:none;margin-top:10px;padding:11px;border:1px solid var(--border);border-radius:12px;color:var(--muted)}
+    .message.show{display:block}
+    .message.error{color:#ffc6cc;border-color:rgba(255,82,100,.3)}
+    .summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:11px}
+    .summary-card{padding:13px;border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.04)}
+    .summary-card span{display:block;color:var(--muted);font-size:11px}
+    .summary-card strong{display:block;margin-top:4px;font-size:23px}
+    .toolbar{display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:12px}
+    .toolbar input{min-width:0;height:43px;padding:0 12px;border:1px solid var(--border);border-radius:12px;color:var(--text);background:rgba(4,7,14,.62)}
+    .editor{display:grid;grid-template-columns:1fr .65fr .65fr 1fr 1fr auto;gap:8px;align-items:end}
+    .actions{display:flex;gap:7px}
+    .table-wrap{overflow-x:auto;margin-top:14px;border:1px solid var(--border);border-radius:14px}
+    table{width:100%;min-width:980px;border-collapse:collapse}
+    th,td{padding:10px 11px;border-bottom:1px solid var(--border);text-align:left;font-size:12px}
+    th{background:rgba(224,0,0,.18);color:#ffd9d9;font-size:10px}
+    tr:last-child td{border-bottom:0}
+    .row-actions{display:flex;gap:5px;white-space:nowrap}
+    .small{min-height:32px;padding:6px 8px;border-radius:9px;font-size:10px}
+    .loading{position:fixed;inset:0;display:none;place-items:center;background:rgba(4,6,11,.75);backdrop-filter:blur(6px)}
+    .loading.show{display:grid}
+    .loading-box{padding:17px 22px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}
+    @media(max-width:900px){
+      body{padding:9px}
+      .header{flex-direction:column}
+      .toolbar,.editor{grid-template-columns:1fr}
+      .actions{display:grid;grid-template-columns:1fr 1fr}
+      .summary{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div>
+        <h1>Admin Marble Game</h1>
+        <p>Terhubung ke sheet MARBLE GAME: username, kesempatan, total point, hadiah, dan Agent admin.</p>
+      </div>
+    </header>
+
+    <section id="loginPanel" class="panel login">
+      <div class="panel-body">
+        <h2>Login Admin</h2>
+        <p style="color:var(--muted)">Masukkan PIN yang tersimpan di Apps Script Properties.</p>
+        <label class="field">
+          <span>PIN ADMIN</span>
+          <input id="pinInput" type="password" placeholder="PIN admin">
+        </label>
+        <button id="loginButton" class="primary full" type="button">Masuk Panel</button>
+        <div id="loginMessage" class="message"></div>
+      </div>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="summary">
+        <div class="summary-card"><span>TOTAL USERNAME</span><strong id="totalMembers">0</strong></div>
+        <div class="summary-card"><span>TOTAL KESEMPATAN</span><strong id="totalAttempts">0</strong></div>
+        <div class="summary-card"><span>TOTAL POINT</span><strong id="totalPoints">0</strong></div>
+      </div>
+
+      <section class="panel">
+        <div class="panel-body">
+          <div class="toolbar">
+            <input id="searchInput" type="search" placeholder="Cari username atau Agent admin...">
+            <button id="refreshButton" class="secondary" type="button">Refresh</button>
+            <button id="logoutButton" class="danger" type="button">Keluar</button>
+          </div>
+
+          <div class="editor">
+            <label class="field">
+              <span>USERNAME</span>
+              <input id="usernameInput" type="text" maxlength="40" placeholder="CRB123456">
+            </label>
+            <label class="field">
+              <span>KESEMPATAN</span>
+              <input id="attemptInput" type="number" min="0" value="3">
+            </label>
+            <label class="field">
+              <span>TOTAL POINT</span>
+              <input id="pointInput" type="number" min="0" value="0">
+            </label>
+            <label class="field">
+              <span>HADIAH</span>
+              <input id="rewardInput" type="text" maxlength="100" placeholder="Contoh: Rp50.000">
+            </label>
+            <label class="field">
+              <span>AGENT ADMIN</span>
+              <input id="agentInput" type="text" maxlength="80" placeholder="Nama agent admin">
+            </label>
+            <div class="actions">
+              <button id="saveButton" class="primary" type="button">Simpan</button>
+              <button id="clearButton" class="secondary" type="button">Bersihkan</button>
+            </div>
+          </div>
+
+          <div id="dashboardMessage" class="message"></div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>NO</th>
+                  <th>TANGGAL</th>
+                  <th>USERNAME</th>
+                  <th>KESEMPATAN</th>
+                  <th>TOTAL POINT</th>
+                  <th>HADIAH</th>
+                  <th>AGENT ADMIN</th>
+                  <th>AKSI</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="loading" class="loading">
+    <div id="loadingText" class="loading-box">Memproses...</div>
+  </div>
+
+  <script>
+    const API_URL = "PASTE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+    const pinInput = document.getElementById("pinInput");
+    const loginButton = document.getElementById("loginButton");
+    const loginPanel = document.getElementById("loginPanel");
+    const dashboard = document.getElementById("dashboard");
+    const loginMessage = document.getElementById("loginMessage");
+    const dashboardMessage = document.getElementById("dashboardMessage");
+    const totalMembers = document.getElementById("totalMembers");
+    const totalAttempts = document.getElementById("totalAttempts");
+    const totalPoints = document.getElementById("totalPoints");
+    const searchInput = document.getElementById("searchInput");
+    const refreshButton = document.getElementById("refreshButton");
+    const logoutButton = document.getElementById("logoutButton");
+    const usernameInput = document.getElementById("usernameInput");
+    const attemptInput = document.getElementById("attemptInput");
+    const pointInput = document.getElementById("pointInput");
+    const rewardInput = document.getElementById("rewardInput");
+    const agentInput = document.getElementById("agentInput");
+    const saveButton = document.getElementById("saveButton");
+    const clearButton = document.getElementById("clearButton");
+    const tableBody = document.getElementById("tableBody");
+    const loading = document.getElementById("loading");
+    const loadingText = document.getElementById("loadingText");
+
+    let adminToken = "";
+    let members = [];
+
+    async function callApi(action, data = {}) {
+      if (API_URL.includes("PASTE_APPS_SCRIPT")) {
+        throw new Error("API_URL belum diisi.");
+      }
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        body: new URLSearchParams({ action, ...data }),
+        redirect: "follow"
+      });
+
+      const text = await response.text();
+      let result;
+
+      try {
+        result = JSON.parse(text);
+      } catch (error) {
+        throw new Error("Respons API tidak valid.");
+      }
+
+      if (!result.success) {
+        throw new Error(result.message || "Terjadi kesalahan.");
+      }
+
+      return result;
+    }
+
+    function showLoading(message) {
+      loadingText.textContent = message;
+      loading.classList.add("show");
+    }
+
+    function hideLoading() {
+      loading.classList.remove("show");
+    }
+
+    function showMessage(element, message, error = false) {
+      element.textContent = message;
+      element.className = "message show" + (error ? " error" : "");
+    }
+
+    function normalizeUsername(value) {
+      return String(value || "")
+        .trim()
+        .replace(/\s+/g, "")
+        .replace(/[^a-zA-Z0-9_-]/g, "")
+        .slice(0, 40)
+        .toUpperCase();
+    }
+
+    async function login() {
+      const pin = pinInput.value.trim();
+
+      if (!pin) {
+        showMessage(loginMessage, "Masukkan PIN admin.", true);
+        return;
+      }
+
+      showLoading("Memeriksa PIN...");
+
+      try {
+        const response = await callApi("adminLogin", { pin });
+        adminToken = response.adminToken;
+        members = response.members || [];
+        loginPanel.classList.add("hidden");
+        dashboard.classList.remove("hidden");
+        renderAll();
+      } catch (error) {
+        showMessage(loginMessage, error.message, true);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function refreshMembers() {
+      showLoading("Mengambil data sheet...");
+
+      try {
+        const response = await callApi("adminListMembers", { adminToken });
+        members = response.members || [];
+        renderAll();
+        showMessage(dashboardMessage, "Data berhasil diperbarui.");
+      } catch (error) {
+        showMessage(dashboardMessage, error.message, true);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function renderAll() {
+      totalMembers.textContent = members.length;
+      totalAttempts.textContent = members.reduce(
+        (sum, item) => sum + Number(item.remainingAttempts || 0),
+        0
+      );
+      totalPoints.textContent = members.reduce(
+        (sum, item) => sum + Number(item.totalPoint || 0),
+        0
+      );
+      renderTable();
+    }
+
+    function renderTable() {
+      const query = searchInput.value.trim().toLowerCase();
+
+      const filtered = members.filter((item) => {
+        return (
+          !query ||
+          item.username.toLowerCase().includes(query) ||
+          String(item.agentAdmin || "").toLowerCase().includes(query)
+        );
+      });
+
+      if (!filtered.length) {
+        tableBody.innerHTML = '<tr><td colspan="8">Belum ada data member.</td></tr>';
+        return;
+      }
+
+      tableBody.innerHTML = filtered.map((item) => {
+        const date = item.date
+          ? new Date(item.date).toLocaleString("id-ID")
+          : "-";
+
+        return `
+          <tr>
+            <td>${item.no || "-"}</td>
+            <td>${escapeHtml(date)}</td>
+            <td><b>${escapeHtml(item.username)}</b></td>
+            <td>${item.remainingAttempts}</td>
+            <td>${item.totalPoint}</td>
+            <td>${escapeHtml(item.reward || "-")}</td>
+            <td>${escapeHtml(item.agentAdmin || "-")}</td>
+            <td>
+              <div class="row-actions">
+                <button class="small secondary" data-action="edit" data-id="${escapeAttr(item.username)}" type="button">Edit</button>
+                <button class="small primary" data-action="add" data-amount="1" data-id="${escapeAttr(item.username)}" type="button">+1</button>
+                <button class="small primary" data-action="add" data-amount="5" data-id="${escapeAttr(item.username)}" type="button">+5</button>
+                <button class="small danger" data-action="delete" data-id="${escapeAttr(item.username)}" type="button">Hapus</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function editMember(username) {
+      const member = members.find((item) => item.username === username);
+      if (!member) return;
+
+      usernameInput.value = member.username;
+      usernameInput.disabled = true;
+      attemptInput.value = member.remainingAttempts;
+      pointInput.value = member.totalPoint;
+      rewardInput.value = member.reward || "";
+      agentInput.value = member.agentAdmin || "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function clearForm() {
+      usernameInput.disabled = false;
+      usernameInput.value = "";
+      attemptInput.value = "3";
+      pointInput.value = "0";
+      rewardInput.value = "";
+      agentInput.value = "";
+    }
+
+    async function saveMember() {
+      const username = normalizeUsername(usernameInput.value);
+
+      if (!username) {
+        showMessage(dashboardMessage, "Username wajib diisi.", true);
+        return;
+      }
+
+      showLoading("Menyimpan data...");
+
+      try {
+        const response = await callApi("adminSaveMember", {
+          adminToken,
+          username,
+          attempts: Math.max(0, Math.floor(Number(attemptInput.value) || 0)),
+          totalPoint: Math.max(0, Math.floor(Number(pointInput.value) || 0)),
+          reward: rewardInput.value.trim(),
+          agentAdmin: agentInput.value.trim()
+        });
+
+        members = response.members || [];
+        clearForm();
+        renderAll();
+        showMessage(dashboardMessage, response.message);
+      } catch (error) {
+        showMessage(dashboardMessage, error.message, true);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function addAttempts(username, amount) {
+      showLoading("Memperbarui kesempatan...");
+
+      try {
+        const response = await callApi("adminAddAttempts", {
+          adminToken,
+          username,
+          amount
+        });
+
+        members = response.members || [];
+        renderAll();
+        showMessage(dashboardMessage, response.message);
+      } catch (error) {
+        showMessage(dashboardMessage, error.message, true);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    async function deleteMember(username) {
+      if (!confirm("Hapus username " + username + "?")) return;
+
+      showLoading("Menghapus data...");
+
+      try {
+        const response = await callApi("adminDeleteMember", {
+          adminToken,
+          username
+        });
+
+        members = response.members || [];
+        clearForm();
+        renderAll();
+        showMessage(dashboardMessage, response.message);
+      } catch (error) {
+        showMessage(dashboardMessage, error.message, true);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function logout() {
+      adminToken = "";
+      members = [];
+      pinInput.value = "";
+      dashboard.classList.add("hidden");
+      loginPanel.classList.remove("hidden");
+      clearForm();
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    loginButton.addEventListener("click", login);
+    pinInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") login();
+    });
+    refreshButton.addEventListener("click", refreshMembers);
+    logoutButton.addEventListener("click", logout);
+    saveButton.addEventListener("click", saveMember);
+    clearButton.addEventListener("click", clearForm);
+    searchInput.addEventListener("input", renderTable);
+
+    tableBody.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+
+      const action = button.dataset.action;
+      const username = button.dataset.id;
+
+      if (action === "edit") editMember(username);
+      if (action === "add") addAttempts(username, Number(button.dataset.amount));
+      if (action === "delete") deleteMember(username);
+    });
+  </script>
+</body>
+</html>
