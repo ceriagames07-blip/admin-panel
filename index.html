@@ -120,8 +120,9 @@
               <input id="pointInput" type="number" min="0" value="0">
             </label>
             <label class="field">
-              <span>HADIAH</span>
-              <input id="rewardInput" type="text" maxlength="100" placeholder="Contoh: Rp50.000">
+              <span>HADIAH TOTAL</span>
+              <input id="rewardInput" type="text" maxlength="100" placeholder="0 / 10000 / 20000 / 50000">
+              <small style="display:block;margin-top:5px;color:var(--muted)">Saat hadiah total bertambah Rp10.000, Rp20.000, atau Rp50.000, poin otomatis dipotong.</small>
             </label>
             <label class="field">
               <span>AGENT ADMIN</span>
@@ -383,7 +384,13 @@
         members = response.members || [];
         clearForm();
         renderAll();
-        showMessage(dashboardMessage, response.message);
+        showMessage(
+          dashboardMessage,
+          response.message +
+          (response.pointsDeducted
+            ? " Sisa poin: " + response.remainingPoints + "."
+            : "")
+        );
       } catch (error) {
         showMessage(dashboardMessage, error.message, true);
       } finally {
