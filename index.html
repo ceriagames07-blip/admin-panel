@@ -49,12 +49,14 @@
     .editor{display:grid;grid-template-columns:1fr .65fr .65fr 1fr 1fr auto;gap:8px;align-items:end}
     .actions{display:flex;gap:7px}
     .table-wrap{overflow-x:auto;margin-top:14px;border:1px solid var(--border);border-radius:14px}
-    table{width:100%;min-width:980px;border-collapse:collapse}
+    table{width:100%;min-width:1180px;border-collapse:collapse}
     th,td{padding:10px 11px;border-bottom:1px solid var(--border);text-align:left;font-size:12px}
     th{background:rgba(224,0,0,.18);color:#ffd9d9;font-size:10px}
     tr:last-child td{border-bottom:0}
     .row-actions{display:flex;gap:5px;white-space:nowrap}
     .small{min-height:32px;padding:6px 8px;border-radius:9px;font-size:10px}
+    .redeem{border:1px solid rgba(255,214,82,.3);background:rgba(255,214,82,.12);color:#ffe89b}
+    .redeem:disabled{opacity:.35;cursor:not-allowed}
     .loading{position:fixed;inset:0;display:none;place-items:center;background:rgba(4,6,11,.75);backdrop-filter:blur(6px)}
     .loading.show{display:grid}
     .loading-box{padding:17px 22px;border:1px solid var(--border);border-radius:14px;background:var(--panel)}
@@ -72,7 +74,7 @@
     <header class="header">
       <div>
         <h1>Admin Marble Game</h1>
-        <p>Terhubung ke sheet MARBLE GAME: username, kesempatan, total point, hadiah, dan Agent admin.</p>
+        <p>Terhubung ke sheet MARBLE GAME. Penukaran hadiah otomatis mengurangi total poin member.</p>
       </div>
     </header>
 
@@ -325,6 +327,9 @@
                 <button class="small secondary" data-action="edit" data-id="${escapeAttr(item.username)}" type="button">Edit</button>
                 <button class="small primary" data-action="add" data-amount="1" data-id="${escapeAttr(item.username)}" type="button">+1</button>
                 <button class="small primary" data-action="add" data-amount="5" data-id="${escapeAttr(item.username)}" type="button">+5</button>
+                <button class="small redeem" data-action="redeem" data-points="300" data-reward="10000" data-id="${escapeAttr(item.username)}" type="button" ${Number(item.totalPoint || 0) < 300 ? "disabled" : ""}>300→10K</button>
+                <button class="small redeem" data-action="redeem" data-points="600" data-reward="20000" data-id="${escapeAttr(item.username)}" type="button" ${Number(item.totalPoint || 0) < 600 ? "disabled" : ""}>600→20K</button>
+                <button class="small redeem" data-action="redeem" data-points="1500" data-reward="50000" data-id="${escapeAttr(item.username)}" type="button" ${Number(item.totalPoint || 0) < 1500 ? "disabled" : ""}>1500→50K</button>
                 <button class="small danger" data-action="delete" data-id="${escapeAttr(item.username)}" type="button">Hapus</button>
               </div>
             </td>
@@ -406,6 +411,62 @@
       }
     }
 
+    async function redeemPoints(
+      username,
+      pointsRequired,
+      rewardAmount
+    ) {
+      const rewardLabel =
+        "Rp" + Number(rewardAmount).toLocaleString("id-ID");
+
+      const confirmed = confirm(
+        "Tukar " +
+        pointsRequired +
+        " poin milik " +
+        username +
+        " menjadi " +
+        rewardLabel +
+        "?\n\nPoin akan langsung dikurangi dan transaksi dicatat."
+      );
+
+      if (!confirmed) return;
+
+      showLoading("Memproses penukaran poin...");
+
+      try {
+        const response = await callApi(
+          "adminRedeemPoints",
+          {
+            adminToken,
+            username,
+            pointsRequired,
+            rewardAmount
+          }
+        );
+
+        members = response.members || [];
+        renderAll();
+
+        showMessage(
+          dashboardMessage,
+          response.message +
+          " Sisa poin: " +
+          response.remainingPoints +
+          ". Total hadiah: " +
+          response.totalRewardLabel +
+          "."
+        );
+      } catch (error) {
+        showMessage(
+          dashboardMessage,
+          error.message,
+          true
+        );
+      } finally {
+        hideLoading();
+      }
+    }
+
     async function deleteMember(username) {
       if (!confirm("Hapus username " + username + "?")) return;
 
@@ -468,7 +529,16 @@
       const username = button.dataset.id;
 
       if (action === "edit") editMember(username);
-      if (action === "add") addAttempts(username, Number(button.dataset.amount));
+      if (action === "add") {
+        addAttempts(username, Number(button.dataset.amount));
+      }
+      if (action === "redeem") {
+        redeemPoints(
+          username,
+          Number(button.dataset.points),
+          Number(button.dataset.reward)
+        );
+      }
       if (action === "delete") deleteMember(username);
     });
   </script>
